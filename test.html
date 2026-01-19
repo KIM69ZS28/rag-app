@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" />
+  <title>API Test</title>
+  <body>
+    <button id="btn">/ask を叩く</button>
+    <pre id="out"></pre>
+
+    <script>
+      const out = document.getElementById("out");
+      document.getElementById("btn").addEventListener("click", async () => {
+        out.textContent = "calling...\n";
+        try {
+          const r = await fetch("https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: "勤怠締め後の修正は誰ができますか？" })
+          });
+          out.textContent += "status: " + r.status + "\n";
+          const data = await r.json();
+          out.textContent += JSON.stringify(data, null, 2);
+          console.log(data);
+        } catch (e) {
+          out.textContent += "error: " + e;
+          console.error(e);
+        }
+      });
+    </script>
+  </body>
+</html>
