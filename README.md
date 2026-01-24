@@ -12,6 +12,7 @@ Editable source files are also available:
 本ポートフォリオでは、RAG（Retrieval-Augmented Generation）構成の質問応答APIを API Gateway + Lambda で公開しています。  
 質問文をPOSTすると、DynamoDBに格納されたドキュメントチャンク（embedding付き）から関連情報（TopK）を検索し、Bedrock（LLM）で根拠に基づく回答を生成して返します。
 
+また、RAG + Bedrock + DynamoDB（Embedding）構成を、Amazon Cognito（JWT）で保護することで、実運用を想定した認証付きQ&A APIとして実装しました。
 ---
 
 ### Endpoint
@@ -26,15 +27,27 @@ https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask
 
 ---
 
-### Request Example (curl)
+### Request Example (curl / Auth flow)
+
+1) CognitoでIDトークンを取得（例）
 
 ```bash
-curl -s -X POST "https://<API_ID>.execute-api.ap-northeast-1.amazonaws.com/prod/ask" \
+aws cognito-idp initiate-auth \
+  --region ap-northeast-1 \
+  --client-id <COGNITO_APP_CLIENT_ID> \
+  --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters USERNAME="<EMAIL>",PASSWORD="<PASSWORD>"
+```
+レスポンスの AuthenticationResult.IdToken を控えます。
+
+2) APIを呼び出し
+
+```bash
+curl -s -X POST "https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask" \
   -H "Content-Type: application/json" \
-  -H "x-api-key: <YOUR_API_KEY>" \
+  -H "Authorization: Bearer <ID_TOKEN>" \
   -d '{"question":"勤怠締め後に勤怠を修正したい場合、誰が対応できますか？監査上の注意点も教えてください。"}'
 ```
-
 ---
 
 ### Request Example (Browser / UI test)
