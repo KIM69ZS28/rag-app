@@ -1,28 +1,93 @@
 <!doctype html>
 <html lang="ja">
-  <meta charset="utf-8" />
-  <title>API Test</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RAG Ask Test</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      .row { margin-bottom: 12px; }
+      textarea { width: 100%; height: 120px; }
+      button { padding: 10px 14px; cursor: pointer; }
+      pre { background: #f6f8fa; padding: 12px; overflow: auto; border-radius: 8px; }
+      .hint { color: #555; font-size: 0.9em; }
+    </style>
+  </head>
   <body>
-    <button id="btn">/ask を叩く</button>
-    <pre id="out"></pre>
+    <h2>/ask を叩く（x-api-key付き）</h2>
+
+    <div class="row">
+      <div class="hint">Endpoint（prod/ask）</div>
+      <input id="endpoint" style="width:100%" value="https://<API_ID>.execute-api.ap-northeast-1.amazonaws.com/prod/ask" />
+    </div>
+
+    <div class="row">
+      <div class="hint">x-api-key（※GitHubに公開しないでください）</div>
+      <input id="apikey" style="width:100%" value="<YOUR_API_KEY>" />
+    </div>
+
+    <div class="row">
+      <div class="hint">質問</div>
+      <textarea id="question">勤怠締め後に勤怠を修正したい場合、誰が対応できますか？監査上の注意点も教えてください。</textarea>
+    </div>
+
+    <div class="row">
+      <button id="btn">/ask を叩く</button>
+      <span id="status" style="margin-left:10px;"></span>
+    </div>
+
+    <div class="row">
+      <div class="hint">結果</div>
+      <pre id="out">(ここに結果が表示されます)</pre>
+    </div>
 
     <script>
-      const out = document.getElementById("out");
-      document.getElementById("btn").addEventListener("click", async () => {
-        out.textContent = "calling...\n";
+      const $ = (id) => document.getElementById(id);
+
+      $("btn").addEventListener("click", async () => {
+        const endpoint = $("endpoint").value.trim();
+        const apikey = $("apikey").value.trim();
+        const question = $("question").value.trim();
+
+        $("status").textContent = "calling...";
+        $("out").textContent = "";
+
+        if (!endpoint) {
+          $("status").textContent = "endpoint が空です";
+          return;
+        }
+        if (!apikey) {
+          $("status").textContent = "x-api-key が空です";
+          return;
+        }
+        if (!question) {
+          $("status").textContent = "question が空です";
+          return;
+        }
+
         try {
-          const r = await fetch("https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask", {
+          const res = await fetch(endpoint, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: "勤怠締め後の修正は誰ができますか？" })
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": apikey
+            },
+            body: JSON.stringify({ question })
           });
-          out.textContent += "status: " + r.status + "\n";
-          const data = await r.json();
-          out.textContent += JSON.stringify(data, null, 2);
-          console.log(data);
+
+          $("status").textContent = `status: ${res.status}`;
+          const text = await res.text();
+
+          // JSONっぽければ整形して表示
+          try {
+            const json = JSON.parse(text);
+            $("out").textContent = JSON.stringify(json, null, 2);
+          } catch {
+            $("out").textContent = text;
+          }
         } catch (e) {
-          out.textContent += "error: " + e;
-          console.error(e);
+          $("status").textContent = "fetch error";
+          $("out").textContent = String(e);
         }
       });
     </script>
