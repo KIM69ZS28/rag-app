@@ -29,8 +29,9 @@ https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask
 ### Request Example (curl)
 
 ```bash
-curl -s -X POST "https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask" \
+curl -s -X POST "https://<API_ID>.execute-api.ap-northeast-1.amazonaws.com/prod/ask" \
   -H "Content-Type: application/json" \
+  -H "x-api-key: <YOUR_API_KEY>" \
   -d '{"question":"勤怠締め後に勤怠を修正したい場合、誰が対応できますか？監査上の注意点も教えてください。"}'
 ```
 
