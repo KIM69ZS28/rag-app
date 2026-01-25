@@ -13,6 +13,7 @@ Editable source files are also available:
 質問文をPOSTすると、DynamoDBに格納されたドキュメントチャンク（embedding付き）から関連情報（TopK）を検索し、Bedrock（LLM）で根拠に基づく回答を生成して返します。
 
 また、RAG + Bedrock + DynamoDB（Embedding）構成を、Amazon Cognito（JWT）で保護することで、実運用を想定した認証付きQ&A APIとして実装しました。
+
 ---
 
 ### Endpoint
