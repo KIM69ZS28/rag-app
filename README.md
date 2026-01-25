@@ -73,7 +73,7 @@ http://localhost:8000/test.html
 レスポンスは厳密なJSON形式で返却されます。
 
 - answer: 主張（claim）の配列。各claimには参照した source_id を紐付け
-- unknowns: 根拠不足で断定できない事項の配列（推測で埋めない）
+- unknowns: 根拠不足で断定できない事項の配列（根拠不足の問いはここに返す）
 - sources: 参照ソースの一覧（doc_id / chunk_id / excerpt を含む）
 
 Response example:
