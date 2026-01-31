@@ -1,389 +1,471 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>RAG /ask UI Test (Cognito JWT)</title>
+  <title>RAG Demo UI (Cognito Hosted UI + PKCE)</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; margin: 24px; }
-    h1 { margin: 0 0 8px; }
-    .muted { color: #666; font-size: 14px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 16px 0; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    label { display: block; font-size: 13px; color: #333; margin: 8px 0 6px; }
-    input, textarea, button, select { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid #cbd5e1; }
-    textarea { min-height: 90px; resize: vertical; }
-    button { cursor: pointer; border: 0; background: #111827; color: #fff; font-weight: 600; }
-    button.secondary { background: #374151; }
-    button.danger { background: #b91c1c; }
-    .row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
-    .row > * { flex: 1; }
-    pre { background: #0b1020; color: #d6e1ff; padding: 12px; border-radius: 12px; overflow: auto; }
-    .ok { color: #059669; font-weight: 700; }
-    .ng { color: #dc2626; font-weight: 700; }
-    .pill { display:inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; background:#eef2ff; color:#3730a3; }
-    .small { font-size: 12px; color: #666; }
-    code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 980px;
+      margin: 36px auto;
+      padding: 0 16px;
+      background: #fafafa;
+      color: #111;
+    }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .sub { color: #444; margin-top: 0; }
+    .card {
+      background: #fff;
+      border: 1px solid #e6e6e6;
+      border-radius: 10px;
+      padding: 14px 14px 10px;
+      margin-top: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      cursor: pointer;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: #111;
+      color: #fff;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: #fff;
+      color: #111;
+    }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    textarea, input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+    label { display: block; font-weight: 700; margin-top: 10px; }
+    pre {
+      background: #0b0b0b;
+      color: #d9ffd9;
+      padding: 12px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .muted { color: #666; font-size: 12px; }
+    .ok { color: #0b7a0b; font-weight: 700; }
+    .ng { color: #b00020; font-weight: 700; }
+    .error {
+      color: #b00020;
+      white-space: pre-wrap;
+      background: #fff0f3;
+      border: 1px solid #ffd0da;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    code.inline {
+      background: #f2f2f2;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
-  <h1>RAG /ask UI Test <span class="pill">Cognito JWT (Auth Code + PKCE)</span></h1>
-  <p class="muted">
-    1) Hosted UIでログイン（Authorization Code + PKCE）→ 2) codeをtokenへ交換（IdToken取得）→ 3) Authorization: Bearer で <code>/ask</code> を実行します。<br>
-    ※ ローカルで <code>python3 -m http.server 8000</code> などで開いてください（Callback URL と一致させる必要あり）。
+
+<h1>RAG Q&A Demo UI</h1>
+<p class="sub">Cognito Hosted UI（認可コード + PKCE）でログイン → JWT取得 → <code class="inline">/ask</code> 実行</p>
+
+<div class="card">
+  <h2 style="margin:0 0 8px;">0) 設定（ここだけ確認）</h2>
+  <p class="muted" style="margin:0;">
+    このHTMLは <b>http://localhost:8000/test.html</b> 前提です。Cognito側の「コールバックURL」に同じURLを登録してください。
   </p>
+</div>
 
-  <div class="card">
-    <h2 style="margin-top:0">設定</h2>
-    <div class="grid">
-      <div>
-        <label>Region</label>
-        <input id="region" value="ap-northeast-1" />
-      </div>
-      <div>
-        <label>Cognito Domain（Hosted UI）</label>
-        <input id="cognitoDomain" placeholder="https://xxxxx.auth.ap-northeast-1.amazoncognito.com" />
-        <div class="small">例：<code>https://your-domain.auth.ap-northeast-1.amazoncognito.com</code>（末尾スラッシュ不要）</div>
-      </div>
-    </div>
+<div class="card">
+  <h2 style="margin:0 0 8px;">1) ログイン（Hosted UI）</h2>
+  <div class="row">
+    <button id="btnLogin" onclick="startLogin()">ログイン</button>
+    <button class="secondary" id="btnLogout" onclick="logout()" disabled>ログアウト</button>
+    <button class="secondary" onclick="clearLocal()">ローカル状態クリア</button>
+  </div>
+  <p id="authStatus" class="muted" style="margin:10px 0 0;">未ログイン</p>
+  <div id="authError" class="error" style="display:none;"></div>
 
-    <div class="grid">
-      <div>
-        <label>App Client ID</label>
-        <input id="clientId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxx" />
-      </div>
-      <div>
-        <label>Redirect URI（Callback URLと一致）</label>
-        <input id="redirectUri" value="http://localhost:8000/test.html" />
-      </div>
-    </div>
+  <details style="margin-top:10px;">
+    <summary class="muted">JWT内容（デコード表示）</summary>
+    <pre id="jwtDecoded">(ログイン後に表示)</pre>
+  </details>
+</div>
 
-    <label>/ask API URL（/prod/ask まで含める）</label>
-    <input id="apiUrl" placeholder="https://xxxx.execute-api.ap-northeast-1.amazonaws.com/prod/ask" />
+<div class="card">
+  <h2 style="margin:0 0 8px;">2) 質問 → /ask</h2>
+  <label>Question</label>
+  <textarea id="question" rows="3">勤怠締め後の修正は誰ができますか？監査上の注意点も教えてください。</textarea>
 
-    <div class="row" style="margin-top:12px">
-      <button class="secondary" id="btnSave">この設定を保存（localStorage）</button>
-      <button class="danger" id="btnReset">保存を削除（localStorage）</button>
-    </div>
-    <div class="small" style="margin-top:8px">
-      ※ トークン自体は保存しません（メモリ保持のみ）。設定値のみ localStorage に保存します。
-    </div>
+  <div class="row" style="margin-top:10px;">
+    <button id="btnAsk" onclick="ask()" disabled>/ask を叩く</button>
+    <button class="secondary" onclick="copyCurl()" id="btnCurl" disabled>curl例をコピー</button>
   </div>
 
-  <div class="card">
-    <h2 style="margin-top:0">1) Cognitoログイン（Hosted UI）</h2>
-    <div class="row">
-      <button id="btnLogin">Login（Hosted UIへ）</button>
-      <button class="secondary" id="btnLogout">Logout（トークン破棄）</button>
-    </div>
+  <p class="muted" style="margin-top:8px;">
+    ※ API Gateway 側で <code class="inline">Authorization</code> ヘッダのCORS許可が必要です（かずしさんは既に設定OK）。
+  </p>
+</div>
 
-    <label>IdToken（JWT）※表示は先頭/末尾のみ</label>
-    <input id="idTokenView" readonly value="未ログイン（Loginで取得されます）" />
-    <div class="small" id="tokenMeta"></div>
+<div class="card">
+  <h2 style="margin:0 0 8px;">3) レスポンス</h2>
+  <pre id="response">(ここに表示)</pre>
+  <div id="apiError" class="error" style="display:none;"></div>
+</div>
 
-    <details style="margin-top:10px">
-      <summary>デバッグ（トークン全文）</summary>
-      <pre id="idTokenFull">(none)</pre>
-    </details>
+<script>
+/**
+ * ==========================
+ * TODO: 環境に合わせて変更（3か所だけ）
+ * ==========================
+ */
+const COGNITO_DOMAIN = "https://ap-northeast-1sdomqb5lg.auth.ap-northeast-1.amazoncognito.com";
+const CLIENT_ID      = "ookegapqc2u2vkgu5ubgv2uua";
+const API_URL        = "https://ui2eu8z8bb.execute-api.ap-northeast-1.amazonaws.com/prod/ask";
 
-    <div style="margin-top:10px" class="small">
-      もし <code>code=</code> を付けたURLで開けていれば、このページが自動的に token 交換します。
-    </div>
-  </div>
+/**
+ * このHTML自体のURL（= CognitoのコールバックURLに登録するURL）
+ * http.serverで開く前提のため固定でOK
+ */
+const REDIRECT_URI = "http://localhost:8000/test.html";
 
-  <div class="card">
-    <h2 style="margin-top:0">2) /ask 実行</h2>
-    <label>Question</label>
-    <textarea id="question">勤怠締め後に勤怠を修正したい場合、誰が対応できますか？監査上の注意点も教えてください。</textarea>
-    <div class="row" style="margin-top:10px">
-      <button id="btnAsk">/ask を叩く</button>
-      <button class="secondary" id="btnClear">出力をクリア</button>
-    </div>
-    <div style="margin-top:12px">
-      <div id="statusLine" class="small"></div>
-      <pre id="output">(no output)</pre>
-    </div>
-  </div>
+/**
+ * 取得したトークンを保持（sessionStorage：タブを閉じると消える）
+ * - API GatewayのJWT Authorizerは「IDトークン」「アクセストークン」どちらでも通る設定にしているケースが多いですが、
+ *   まずはIDトークンで統一します（openid必須）。
+ */
+const STORAGE_KEY = "rag_demo_tokens_v1";
 
-  <script>
-    // ===== Utilities =====
-    const $ = (id) => document.getElementById(id);
+/* ========= ここから下は基本触らない ========= */
 
-    function setStatus(ok, msg) {
-      $("statusLine").innerHTML = ok
-        ? `<span class="ok">OK</span> ${escapeHtml(msg)}`
-        : `<span class="ng">NG</span> ${escapeHtml(msg)}`;
+function $(id) { return document.getElementById(id); }
+
+function showError(el, msg) {
+  el.style.display = msg ? "block" : "none";
+  el.textContent = msg || "";
+}
+
+function setStatus(text, ok=false) {
+  $("authStatus").innerHTML = ok ? `<span class="ok">${text}</span>` : `<span class="muted">${text}</span>`;
+}
+
+function setAskEnabled(enabled) {
+  $("btnAsk").disabled = !enabled;
+  $("btnCurl").disabled = !enabled;
+  $("btnLogout").disabled = !enabled;
+}
+
+function clearLocal() {
+  sessionStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem("pkce_verifier");
+  // URLの code 等を掃除
+  const url = new URL(window.location.href);
+  url.searchParams.delete("code");
+  url.searchParams.delete("state");
+  url.searchParams.delete("error");
+  url.searchParams.delete("error_description");
+  history.replaceState({}, "", url.toString());
+
+  $("jwtDecoded").textContent = "(ログイン後に表示)";
+  $("response").textContent = "(ここに表示)";
+  showError($("authError"), "");
+  showError($("apiError"), "");
+  setStatus("未ログイン");
+  setAskEnabled(false);
+}
+
+/** base64url decode */
+function b64urlDecode(str) {
+  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = str.length % 4;
+  if (pad) str += "=".repeat(4 - pad);
+  const decoded = atob(str);
+  // UTF-8対応
+  const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function decodeJwt(jwt) {
+  const parts = jwt.split(".");
+  if (parts.length !== 3) return { error: "JWTの形式が不正です（3セグメントではありません）" };
+  try {
+    return {
+      header: JSON.parse(b64urlDecode(parts[0])),
+      payload: JSON.parse(b64urlDecode(parts[1])),
+      signature: "(省略)"
+    };
+  } catch (e) {
+    return { error: "JWTのデコードに失敗しました", detail: String(e) };
+  }
+}
+
+/** PKCE helper */
+async function sha256(plain) {
+  const enc = new TextEncoder().encode(plain);
+  const digest = await crypto.subtle.digest("SHA-256", enc);
+  return new Uint8Array(digest);
+}
+
+function base64urlEncode(bytes) {
+  let binary = "";
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function randomString(len=64) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  const bytes = crypto.getRandomValues(new Uint8Array(len));
+  return Array.from(bytes, b => chars[b % chars.length]).join("");
+}
+
+async function pkceChallengeFromVerifier(verifier) {
+  const hashed = await sha256(verifier);
+  return base64urlEncode(hashed);
+}
+
+/**
+ * Hosted UIへ遷移（認可コード+PKCE）
+ */
+async function startLogin() {
+  showError($("authError"), "");
+  setStatus("Hosted UIへ遷移します…");
+
+  const state = randomString(16);
+  const verifier = randomString(64);
+  const challenge = await pkceChallengeFromVerifier(verifier);
+
+  sessionStorage.setItem("pkce_verifier", verifier);
+  sessionStorage.setItem("pkce_state", state);
+
+  const authorizeUrl = new URL(`${COGNITO_DOMAIN}/oauth2/authorize`);
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", CLIENT_ID);
+  authorizeUrl.searchParams.set("redirect_uri", REDIRECT_URI);
+  authorizeUrl.searchParams.set("scope", "openid email"); // 必要最低限: openid（id_tokenが欲しいため）
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("code_challenge", challenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+  window.location.href = authorizeUrl.toString();
+}
+
+/**
+ * code -> token 交換
+ */
+async function exchangeCodeForToken(code) {
+  const verifier = sessionStorage.getItem("pkce_verifier") || "";
+  if (!verifier) throw new Error("PKCE verifier が見つかりません（再度ログインしてください）");
+
+  const params = new URLSearchParams();
+  params.set("grant_type", "authorization_code");
+  params.set("client_id", CLIENT_ID);
+  params.set("code", code);
+  params.set("redirect_uri", REDIRECT_URI);
+  params.set("code_verifier", verifier);
+
+  const res = await fetch(`${COGNITO_DOMAIN}/oauth2/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  const raw = await res.text();
+  let data;
+  try { data = JSON.parse(raw); } catch { data = { raw }; }
+
+  if (!res.ok) {
+    throw new Error(`token exchange failed (${res.status})\n` + JSON.stringify(data, null, 2));
+  }
+
+  // data: { id_token, access_token, refresh_token, token_type, expires_in }
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+    id_token: data.id_token || "",
+    access_token: data.access_token || "",
+    refresh_token: data.refresh_token || "",
+    expires_in: data.expires_in || 0,
+    token_type: data.token_type || "Bearer",
+    obtained_at: Date.now()
+  }));
+
+  // 使い終わったらURLからcodeを消す（気持ちよくする）
+  const url = new URL(window.location.href);
+  url.searchParams.delete("code");
+  url.searchParams.delete("state");
+  history.replaceState({}, "", url.toString());
+
+  return data;
+}
+
+/**
+ * ログアウト（Hosted UIのlogoutへ）
+ */
+function logout() {
+  clearLocal();
+  const logoutUrl = new URL(`${COGNITO_DOMAIN}/logout`);
+  logoutUrl.searchParams.set("client_id", CLIENT_ID);
+  logoutUrl.searchParams.set("logout_uri", REDIRECT_URI);
+  window.location.href = logoutUrl.toString();
+}
+
+/**
+ * 画面ロード時：codeがあれば交換、なければ保存済みトークンで復元
+ */
+async function init() {
+  showError($("authError"), "");
+  showError($("apiError"), "");
+
+  const url = new URL(window.location.href);
+
+  // Cognitoからのエラー返却（Hosted UIで弾かれた場合）
+  const oauthErr = url.searchParams.get("error");
+  const oauthErrDesc = url.searchParams.get("error_description");
+  if (oauthErr) {
+    setStatus("未ログイン");
+    setAskEnabled(false);
+    showError($("authError"), `Hosted UI error: ${oauthErr}\n${oauthErrDesc || ""}`);
+    return;
+  }
+
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const savedState = sessionStorage.getItem("pkce_state");
+
+  if (code) {
+    // stateチェック（CSRF対策）
+    if (!state || !savedState || state !== savedState) {
+      setStatus("未ログイン");
+      setAskEnabled(false);
+      showError($("authError"), "state不一致（セキュリティ上ブロックしました）。もう一度ログインしてください。");
+      return;
     }
 
-    function logOut(obj) {
-      $("output").textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+    setStatus("トークン取得中…");
+    try {
+      const t = await exchangeCodeForToken(code);
+      setStatus("ログイン成功（トークン取得済み）", true);
+      setAskEnabled(true);
+
+      // デコード表示（IDトークン優先）
+      const jwt = t.id_token || t.access_token || "";
+      const decoded = decodeJwt(jwt);
+      $("jwtDecoded").textContent = JSON.stringify(decoded, null, 2);
+
+    } catch (e) {
+      setStatus("未ログイン");
+      setAskEnabled(false);
+      showError($("authError"), String(e));
     }
+    return;
+  }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-      }[c]));
-    }
-
-    function base64UrlToUint8Array(base64Url) {
-      const pad = "=".repeat((4 - (base64Url.length % 4)) % 4);
-      const base64 = (base64Url + pad).replace(/-/g, "+").replace(/_/g, "/");
-      const raw = atob(base64);
-      const arr = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-      return arr;
-    }
-
-    function uint8ArrayToBase64Url(arr) {
-      let str = "";
-      for (let i = 0; i < arr.length; i++) str += String.fromCharCode(arr[i]);
-      const base64 = btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-      return base64;
-    }
-
-    async function sha256Base64Url(input) {
-      const enc = new TextEncoder().encode(input);
-      const hash = await crypto.subtle.digest("SHA-256", enc);
-      return uint8ArrayToBase64Url(new Uint8Array(hash));
-    }
-
-    function randomString(len = 64) {
-      const a = new Uint8Array(len);
-      crypto.getRandomValues(a);
-      return uint8ArrayToBase64Url(a).slice(0, len);
-    }
-
-    function parseJwt(token) {
-      // token: header.payload.signature
-      const parts = token.split(".");
-      if (parts.length !== 3) throw new Error("JWT has invalid segments");
-      const payload = JSON.parse(new TextDecoder().decode(base64UrlToUint8Array(parts[1])));
-      const header  = JSON.parse(new TextDecoder().decode(base64UrlToUint8Array(parts[0])));
-      return { header, payload };
-    }
-
-    function shortJwt(token) {
-      if (!token || token.length < 20) return token || "";
-      return token.slice(0, 20) + " ... " + token.slice(-20);
-    }
-
-    // ===== Settings persistence =====
-    const LS_KEY = "rag_ui_settings_v1";
-
-    function loadSettings() {
-      try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (!raw) return;
-        const s = JSON.parse(raw);
-        if (s.region) $("region").value = s.region;
-        if (s.cognitoDomain) $("cognitoDomain").value = s.cognitoDomain;
-        if (s.clientId) $("clientId").value = s.clientId;
-        if (s.redirectUri) $("redirectUri").value = s.redirectUri;
-        if (s.apiUrl) $("apiUrl").value = s.apiUrl;
-      } catch (e) {
-        console.warn("loadSettings failed", e);
-      }
-    }
-
-    function saveSettings() {
-      const s = {
-        region: $("region").value.trim(),
-        cognitoDomain: $("cognitoDomain").value.trim(),
-        clientId: $("clientId").value.trim(),
-        redirectUri: $("redirectUri").value.trim(),
-        apiUrl: $("apiUrl").value.trim(),
-      };
-      localStorage.setItem(LS_KEY, JSON.stringify(s));
-      setStatus(true, "設定を保存しました");
-    }
-
-    function resetSettings() {
-      localStorage.removeItem(LS_KEY);
-      setStatus(true, "保存した設定を削除しました");
-    }
-
-    // ===== Auth (Authorization Code + PKCE) =====
-    let idToken = ""; // memory only
-
-    function validateSettings() {
-      const region = $("region").value.trim();
-      const domain = $("cognitoDomain").value.trim().replace(/\/+$/,"");
-      const clientId = $("clientId").value.trim();
-      const redirectUri = $("redirectUri").value.trim();
-      const apiUrl = $("apiUrl").value.trim();
-
-      if (!region) throw new Error("Region が未入力です");
-      if (!domain.startsWith("https://")) throw new Error("Cognito Domain は https:// から始めてください");
-      if (!clientId) throw new Error("App Client ID が未入力です");
-      if (!redirectUri) throw new Error("Redirect URI が未入力です");
-      if (!apiUrl.startsWith("https://")) throw new Error("/ask API URL は https:// から始めてください");
-      if (!apiUrl.includes("/ask")) throw new Error("/ask API URL は /ask まで含めてください（例: .../prod/ask）");
-
-      return { region, domain, clientId, redirectUri, apiUrl };
-    }
-
-    async function startLogin() {
-      const { domain, clientId, redirectUri } = validateSettings();
-
-      // PKCE: create verifier + challenge
-      const verifier = randomString(64);
-      const challenge = await sha256Base64Url(verifier);
-
-      // store verifier in sessionStorage (only for this browser tab session)
-      sessionStorage.setItem("pkce_verifier", verifier);
-
-      // build authorize URL
-      // response_type=code, scope=openid (+email if you enabled it), code_challenge_method=S256
-      const scope = encodeURIComponent("openid email");
-      const url =
-        `${domain}/oauth2/authorize?` +
-        `client_id=${encodeURIComponent(clientId)}` +
-        `&response_type=code` +
-        `&scope=${scope}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&code_challenge=${encodeURIComponent(challenge)}` +
-        `&code_challenge_method=S256`;
-
-      setStatus(true, "Hosted UI へ遷移します…");
-      location.href = url;
-    }
-
-    async function exchangeCodeForToken(code) {
-      const { domain, clientId, redirectUri } = validateSettings();
-      const verifier = sessionStorage.getItem("pkce_verifier");
-      if (!verifier) throw new Error("PKCE verifier が見つかりません（別タブ/別ウィンドウで開いた可能性）");
-
-      const tokenUrl = `${domain}/oauth2/token`;
-
-      const body = new URLSearchParams();
-      body.set("grant_type", "authorization_code");
-      body.set("client_id", clientId);
-      body.set("code", code);
-      body.set("redirect_uri", redirectUri);
-      body.set("code_verifier", verifier);
-
-      const resp = await fetch(tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: body.toString(),
-      });
-
-      const text = await resp.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { raw: text }; }
-
-      if (!resp.ok) {
-        throw new Error(`Token exchange failed: ${resp.status} ${JSON.stringify(data)}`);
-      }
-
-      if (!data.id_token) throw new Error("id_token がレスポンスにありません（scope=openid か確認）");
-
-      idToken = data.id_token;
-      $("idTokenView").value = shortJwt(idToken);
-      $("idTokenFull").textContent = idToken;
-
-      const { payload } = parseJwt(idToken);
-      const exp = payload.exp ? new Date(payload.exp * 1000) : null;
-      $("tokenMeta").textContent = exp
-        ? `token_use=${payload.token_use || "?"}, exp=${exp.toLocaleString()}, email=${payload.email || "?"}`
-        : `token_use=${payload.token_use || "?"}`;
-
-      setStatus(true, "IdToken を取得しました。/ask を実行できます。");
-
-      // cleanup: verifier and code in URL
-      sessionStorage.removeItem("pkce_verifier");
-      const u = new URL(location.href);
-      u.searchParams.delete("code");
-      u.searchParams.delete("state");
-      u.searchParams.delete("error");
-      u.searchParams.delete("error_description");
-      history.replaceState({}, document.title, u.toString());
-    }
-
-    function logout() {
-      idToken = "";
-      $("idTokenView").value = "未ログイン（Loginで取得されます）";
-      $("idTokenFull").textContent = "(none)";
-      $("tokenMeta").textContent = "";
-      setStatus(true, "トークンを破棄しました（ログアウト）。");
-    }
-
-    // ===== Call /ask =====
-    async function callAsk() {
-      const { apiUrl } = validateSettings();
-      const q = $("question").value.trim();
-      if (!q) throw new Error("Question が空です");
-      if (!idToken) throw new Error("IdToken がありません。先に Login してください。");
-
-      setStatus(true, "calling...");
-      logOut("calling...");
-
-      const resp = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ question: q }),
-      });
-
-      const text = await resp.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { raw: text }; }
-
-      setStatus(resp.ok, `status: ${resp.status}`);
-      logOut(data);
-    }
-
-    // ===== On load =====
-    window.addEventListener("DOMContentLoaded", async () => {
-      loadSettings();
-
-      $("btnSave").addEventListener("click", () => {
-        try { saveSettings(); } catch (e) { setStatus(false, e.message || String(e)); }
-      });
-      $("btnReset").addEventListener("click", () => {
-        try { resetSettings(); } catch (e) { setStatus(false, e.message || String(e)); }
-      });
-
-      $("btnLogin").addEventListener("click", async () => {
-        try { await startLogin(); } catch (e) { setStatus(false, e.message || String(e)); }
-      });
-
-      $("btnLogout").addEventListener("click", () => logout());
-
-      $("btnAsk").addEventListener("click", async () => {
-        try { await callAsk(); } catch (e) { setStatus(false, e.message || String(e)); logOut({ error: e.message || String(e) }); }
-      });
-
-      $("btnClear").addEventListener("click", () => {
-        $("output").textContent = "(no output)";
-        $("statusLine").textContent = "";
-      });
-
-      // If redirected back with ?code=..., exchange automatically
-      const params = new URLSearchParams(location.search);
-      const err = params.get("error");
-      const errDesc = params.get("error_description");
-      const code = params.get("code");
-
-      if (err) {
-        setStatus(false, `${err}: ${errDesc || ""}`);
+  // codeがない場合：保存済みトークンがあれば復元
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const t = JSON.parse(saved);
+      const jwt = t.id_token || t.access_token || "";
+      if (jwt) {
+        setStatus("ログイン済み（保存トークンを復元）", true);
+        setAskEnabled(true);
+        $("jwtDecoded").textContent = JSON.stringify(decodeJwt(jwt), null, 2);
         return;
       }
+    } catch {}
+  }
 
-      if (code) {
-        try {
-          setStatus(true, "code を検出。token に交換しています…");
-          await exchangeCodeForToken(code);
-        } catch (e) {
-          setStatus(false, e.message || String(e));
-          logOut({ error: e.message || String(e) });
-        }
-      } else {
-        setStatus(true, "準備OK（未ログイン）。Login → /ask の順で試してください。");
-      }
+  setStatus("未ログイン");
+  setAskEnabled(false);
+}
+
+async function ask() {
+  $("response").textContent = "";
+  showError($("apiError"), "");
+
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (!saved) {
+    showError($("apiError"), "先にログインしてください（JWT未取得）");
+    return;
+  }
+
+  const t = JSON.parse(saved);
+
+  // どのトークンをAuthorizationに載せるか：
+  // - まずはIDトークン（READMEで既にIdTokenで動かしているため）
+  // - もし Authorizer 側が access_token 前提なら、ここを access_token に切り替えてください
+  const token = t.id_token; // ←必要なら t.access_token に変更
+
+  if (!token) {
+    showError($("apiError"), "IDトークンがありません。openidスコープが有効か確認してください。");
+    return;
+  }
+
+  const question = $("question").value.trim();
+  if (!question) {
+    showError($("apiError"), "質問が空です。");
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ question })
     });
-  </script>
+
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}\n` + text);
+    }
+
+    // JSONとして整形表示
+    const json = JSON.parse(text);
+    $("response").textContent = JSON.stringify(json, null, 2);
+
+  } catch (e) {
+    showError($("apiError"), String(e));
+  }
+}
+
+function copyCurl() {
+  const saved = sessionStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+
+  const t = JSON.parse(saved);
+  const token = t.id_token || "";
+  const q = $("question").value.trim() || "勤怠締め後の修正は誰ができますか？";
+
+  const cmd =
+`curl -i -X POST "${API_URL}" \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer ${token}" \\
+  -d '${JSON.stringify({ question: q })}'`;
+
+  navigator.clipboard.writeText(cmd).then(() => {
+    $("response").textContent = "(curl例をコピーしました)\n\n" + cmd;
+  }).catch(() => {
+    $("response").textContent = "(クリップボードにコピーできませんでした)\n\n" + cmd;
+  });
+}
+
+window.addEventListener("load", init);
+</script>
+
 </body>
 </html>
